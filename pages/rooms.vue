@@ -26,7 +26,24 @@ function setIsOpen(value: boolean) {
 const name = ref("");
 const description = ref("");
 
-let { data: rooms } = await client.from("rooms").select("*");
+const loading = ref(true);
+const rooms = ref<Database["public"]["Tables"]["rooms"]["Row"][]>([]);
+
+async function getRooms() {
+    let { data } = await client.from("rooms").select("*");
+    if (!data) return;
+    rooms.value = data;
+}
+
+const roomsChannel = client.channel('any')
+    .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rooms' },
+        (payload) => {
+            getRooms();
+        }
+    )
+    .subscribe()
 
 const createRoom = async (name: string, description: string) => {
     if (!name || !description) return;
@@ -38,6 +55,12 @@ const createRoom = async (name: string, description: string) => {
         setIsOpen(false);
     })
 }
+
+onBeforeMount(() => {
+    getRooms().then(() => {
+        loading.value = false;
+    });
+})
 </script>
 
 <template>
@@ -96,6 +119,7 @@ const createRoom = async (name: string, description: string) => {
                     </svg>
                     Create a new room
                 </Button>
+                <p v-if="loading" class="text-neutral-400">Loading...</p>
                 <Button v-for="room in rooms" @click="router.push('room/' + room.id.toString())">
                     {{ room.name }} - {{ room.description }}
                 </Button>
