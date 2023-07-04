@@ -17,5 +17,8 @@
     "@nuxtjs/tailwindcss": "^6.8.0",
     "@types/node": "^18",
     "nuxt": "^3.6.1"
+  },
+  "dependencies": {
+    "@headlessui/vue": "^1.7.14"
   }
 }
