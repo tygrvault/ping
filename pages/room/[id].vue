@@ -39,7 +39,7 @@ const loading = ref(true);
 const msgs = ref<Database["public"]["Tables"]["messages"]["Row"][]>([]);
 
 async function getMessages() {
-    let { data: messages } = await client.from("messages").select("*").eq("room_id", route.params.id);
+    let { data: messages } = await client.from("messages").select("*").eq("room_id", route.params.id).order("created_at", { ascending: true });
     if (!messages) return;
     msgs.value = messages;
 
