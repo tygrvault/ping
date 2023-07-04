@@ -8,6 +8,12 @@ import {
     DialogTitle,
 } from '@headlessui/vue'
 
+definePageMeta({
+    middleware: [
+        'auth'
+    ]
+});
+
 const route = useRoute();
 const router = useRouter();
 const user = useSupabaseUser();
@@ -15,6 +21,7 @@ const client = useSupabaseClient<Database>();
 
 // message state
 const msg = ref("");
+const msgListElement = ref<HTMLElement>();
 
 // room state
 const isOpen = ref(false)
@@ -24,16 +31,37 @@ function setIsOpen(value: boolean) {
 
 // get room
 let { data: rooms, error } = await client.from("rooms").select("*").eq("id", route.params.id);
-
-if (error) {
-    router.push("/rooms");
-}
-
+if (error) router.push("/rooms");
 const room = rooms![0];
 
 // get room messages
-let { data: messages } = await client.from("messages").select("*").eq("room_id", route.params.id);
+const loading = ref(true);
+const msgs = ref<Database["public"]["Tables"]["messages"]["Row"][]>([]);
 
+async function getMessages() {
+    let { data: messages } = await client.from("messages").select("*").eq("room_id", route.params.id);
+    if (!messages) return;
+    msgs.value = messages;
+
+    // put it in a timeout so it scrolls to the bottom after the messages are loaded. for some reason 1ms makes a difference ._.
+    if (msgListElement.value && msgListElement.value?.scrollTop + msgListElement.value?.clientHeight >= msgListElement.value?.scrollHeight - 100) {
+        setTimeout(() => {
+            msgListElement.value?.scrollTo({
+                top: msgListElement.value?.scrollHeight,
+            });
+        }, 1);
+    }
+}
+
+const messagesChannel = client.channel('any')
+    .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'messages' },
+        async (payload) => {
+            await getMessages();
+        }
+    )
+    .subscribe()
 
 // send message func
 const sendMessage = async () => {
@@ -45,6 +73,8 @@ const sendMessage = async () => {
         avatar: user.value?.user_metadata.avatar_url as string,
         username: user.value?.user_metadata.user_name as string
     });
+    msg.value = "";
+
 }
 
 // delete room func
@@ -54,6 +84,16 @@ const deleteRoom = async () => {
     if (error) return console.error(error);
     else router.push("/rooms");
 }
+
+onBeforeMount(() => {
+    getMessages().then(() => {
+        loading.value = false;
+    });
+})
+
+onUnmounted(() => {
+    messagesChannel.unsubscribe();
+})
 </script>
 
 <template>
@@ -118,14 +158,21 @@ const deleteRoom = async () => {
                     </svg>
                 </Button>
             </div>
-            <div class="flex-auto overflow-y-scroll pr-4 border-black/10 dark:border-white/10 border rounded-lg">
-                <Message v-for="message in messages" :avatar="message.avatar" :content="message.content"
+            <div class="flex-auto overflow-y-scroll pr-4 border-black/10 dark:border-white/10 border rounded-lg"
+                ref="msgListElement">
+                <div v-show="loading" class="flex h-full">
+                    <div class="m-auto">
+                        <p class="text-neutral-400">Loading...</p>
+                    </div>
+                </div>
+                <Message v-for="message in msgs" :avatar="message.avatar" :content="message.content"
                     :username="message.username" />
             </div>
         </div>
         <div
             class="w-5/6 md:w-1/2 h-12 flex-none rounded-full flex items-center border border-black/10 dark:border-white/10">
-            <input type="text" placeholder="Message" class="block mx-6 w-full bg-transparent outline-none" v-model="msg">
+            <input type="text" placeholder="Message" class="block mx-6 w-full bg-transparent outline-none" v-model="msg"
+                @keyup.enter="sendMessage()">
             <button class="mx-3 p-2 hover:bg-neutral-800 rounded-2xl" @click="sendMessage()">
                 <svg class="w-5 h-5 text-neutral-400 origin-center transform rotate-90" xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 20 20" fill="currentColor">

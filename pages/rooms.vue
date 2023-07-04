@@ -18,14 +18,16 @@ const router = useRouter();
 const user = useSupabaseUser();
 const client = useSupabaseClient<Database>();
 
+// Create room modal state
 const isOpen = ref(false)
+const name = ref("");
+const description = ref("");
+
 function setIsOpen(value: boolean) {
     isOpen.value = value
 }
 
-const name = ref("");
-const description = ref("");
-
+// rooms realtime state
 const loading = ref(true);
 const rooms = ref<Database["public"]["Tables"]["rooms"]["Row"][]>([]);
 
@@ -39,8 +41,8 @@ const roomsChannel = client.channel('any')
     .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'rooms' },
-        (payload) => {
-            getRooms();
+        async (payload) => {
+            await getRooms();
         }
     )
     .subscribe()
