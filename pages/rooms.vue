@@ -61,6 +61,10 @@ onBeforeMount(() => {
         loading.value = false;
     });
 })
+
+onBeforeUnmount(() => {
+    roomsChannel.unsubscribe();
+});
 </script>
 
 <template>
