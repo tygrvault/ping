@@ -19,26 +19,33 @@ const router = useRouter();
 const user = useSupabaseUser();
 const client = useSupabaseClient<Database>();
 
+const loading = ref(true);
+
 // message state
 const msg = ref("");
+const msgs = ref<Database["public"]["Tables"]["messages"]["Row"][]>([]);
 const msgListElement = ref<HTMLElement>();
 
 // room state
+const room = ref<Database["public"]["Tables"]["rooms"]["Row"]>();
 const isOpen = ref(false)
 function setIsOpen(value: boolean) {
     isOpen.value = value
 }
 
 // get room
-let { data: rooms, error } = await client.from("rooms").select("*").eq("id", route.params.id);
-if (error) router.push("/rooms");
-const room = rooms![0];
+async function getRoom() {
+    let { data: rooms, error } = await client.from("rooms").select("*").eq("id", route.params.id);
+    if (!rooms || error) return router.push("/rooms");
+    if (rooms.length === 0) return router.push("/rooms");
+    room.value = rooms[0];
+}
+
 
 // get room messages
-const loading = ref(true);
-const msgs = ref<Database["public"]["Tables"]["messages"]["Row"][]>([]);
-
 async function getMessages() {
+    await getRoom();
+    if (!room.value) return;
     let { data: messages } = await client.from("messages").select("*").eq("room_id", route.params.id).order("created_at", { ascending: true });
     if (!messages) return;
     msgs.value = messages;
@@ -63,12 +70,21 @@ const messagesChannel = client.channel('any')
     )
     .subscribe()
 
+const roomsChannel = client.channel('any')
+    .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rooms' },
+        async (payload) => {
+            await getRoom();
+        }
+    )
+
 // send message func
 const sendMessage = async () => {
-    if (!msg.value) return;
+    if (!msg.value || !room.value) return;
     await client.from("messages").insert({
         content: msg.value.toString(),
-        room_id: room.id,
+        room_id: room.value.id,
         author_id: user.value?.id as string,
         avatar: user.value?.user_metadata.avatar_url as string,
         username: user.value?.user_metadata.user_name as string
@@ -79,20 +95,22 @@ const sendMessage = async () => {
 
 // delete room func
 const deleteRoom = async () => {
-    if (room.author_id !== user.value?.id) return;
-    const { data: res, error } = await client.from("rooms").delete().eq("id", room.id);
+    if (!room.value || !user.value) return;
+    if (room.value.author_id !== user.value?.id) return;
+    const { data: res, error } = await client.from("rooms").delete().eq("id", room.value.id);
     if (error) return console.error(error);
     else router.push("/rooms");
 }
 
-onBeforeMount(() => {
-    getMessages().then(() => {
+onBeforeMount(async () => {
+    await getMessages().then(() => {
         loading.value = false;
     });
 })
 
 onUnmounted(() => {
     messagesChannel.unsubscribe();
+    roomsChannel.unsubscribe();
 })
 </script>
 
@@ -144,9 +162,9 @@ onUnmounted(() => {
                     </Button>
                 </a>
                 <h2 class="font-medium text-lg">
-                    {{ room.name }}
+                    {{ room?.name }}
                 </h2>
-                <Button class="px-2 py-2" @click="setIsOpen(true)" v-show="user?.id === room.author_id">
+                <Button class="px-2 py-2" @click="setIsOpen(true)" v-show="user?.id === room?.author_id">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                         class="lucide lucide-trash-2">
@@ -157,12 +175,13 @@ onUnmounted(() => {
                         <line x1="14" x2="14" y1="11" y2="17" />
                     </svg>
                 </Button>
+                <div v-show="user?.id !== room?.author_id" />
             </div>
             <div class="flex-auto overflow-y-scroll pr-4 border-black/10 dark:border-white/10 border rounded-lg"
                 ref="msgListElement">
                 <div v-show="loading" class="flex h-full">
                     <div class="m-auto">
-                        <p class="text-neutral-400">Loading...</p>
+                        <p class="text-neutral-400">Loading messages...</p>
                     </div>
                 </div>
                 <Message v-for="message in msgs" :avatar="message.avatar" :content="message.content"
@@ -172,7 +191,7 @@ onUnmounted(() => {
         <div
             class="w-5/6 md:w-1/2 h-12 flex-none rounded-full flex items-center border border-black/10 dark:border-white/10">
             <input type="text" placeholder="Message" class="block mx-6 w-full bg-transparent outline-none" v-model="msg"
-                @keyup.enter="sendMessage()">
+                @keyup.enter="sendMessage()" maxlength="128">
             <button class="mx-3 p-2 hover:bg-neutral-800 rounded-2xl" @click="sendMessage()">
                 <svg class="w-5 h-5 text-neutral-400 origin-center transform rotate-90" xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 20 20" fill="currentColor">
@@ -181,15 +200,6 @@ onUnmounted(() => {
                     </path>
                 </svg>
             </button>
-        </div>
-    </div>
-    <div v-show="!room">
-        <div class="flex h-screen">
-            <div class="m-auto">
-                <h1>
-                    Room {{ route.params.id }} not found.
-                </h1>
-            </div>
         </div>
     </div>
 </template>

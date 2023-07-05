@@ -91,16 +91,18 @@ onBeforeUnmount(() => {
                                     Please fill in the following fields to create a new room.
                                 </p>
                                 <input type="text" placeholder="Name" v-model="name" required
-                                    class="w-full rounded-md p-2 bg-neutral-200 dark:bg-neutral-800 outline-none" />
+                                    class="w-full rounded-md p-2 bg-neutral-200 dark:bg-neutral-800 outline-none"
+                                    maxlength="12" />
                                 <input type="text" placeholder="Description" v-model="description" required
-                                    class=" w-full rounded-md p-2 bg-neutral-200 dark:bg-neutral-800 outline-none" />
+                                    class=" w-full rounded-md p-2 bg-neutral-200 dark:bg-neutral-800 outline-none"
+                                    maxlength="24" />
                             </div>
                             <div class="mt-4 justify-between flex flex-row gap-2">
                                 <Button type="button" @click="setIsOpen(false)">
                                     Cancel
                                 </Button>
                                 <Button type="button" @click="createRoom(name, description)"
-                                    class="bg-neutral-800 hover:bg-neutral-900 dark:bg-neutral-200 dark:hover:bg-neutral-100 text-white dark:text-black">
+                                    class="bg-neutral-800 hover:bg-neutral-900">
                                     Create
                                 </Button>
                             </div>
