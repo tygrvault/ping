@@ -1,5 +1,5 @@
 # Ping ⏺️
-A small scale chat application. Built with Nuxt 3 and Supabase.
+A small scale chat application.
 
 ## Hosting locally
 Since Ping uses Supabase to handle authentication and storing data, you'll need to setup the schema accordingly.  

@@ -1,24 +1,24 @@
 {
-  "name": "ping",
-  "private": true,
-  "scripts": {
-    "build": "nuxt build",
-    "dev": "nuxt dev",
-    "generate": "nuxt generate",
-    "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
-  },
-  "devDependencies": {
-    "@nuxt/devtools": "latest",
-    "@nuxt/image": "1.0.0-rc.1",
-    "@nuxtjs/color-mode": "^3.3.0",
-    "@nuxtjs/google-fonts": "^3.0.1",
-    "@nuxtjs/supabase": "^0.3.8",
-    "@nuxtjs/tailwindcss": "^6.8.0",
-    "@types/node": "^18",
-    "nuxt": "^3.6.1"
-  },
-  "dependencies": {
-    "@headlessui/vue": "^1.7.14"
-  }
+    "name": "ping",
+    "description": "A minimal chat application.",
+    "version": "0.0.1",
+    "private": true,
+    "scripts": {
+        "build": "turbo build",
+        "dev": "turbo dev",
+        "android": "turbo android --filter=mobile",
+        "ios": "turbo ios --filter=mobile",
+        "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    },
+    "devDependencies": {
+        "@turbo/gen": "^1.9.7",
+        "eslint": "^7.32.0",
+        "prettier": "^2.5.1",
+        "turbo": "latest"
+    },
+    "packageManager": "yarn@1.22.19",
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ]
 }
